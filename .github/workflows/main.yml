@@ -1,0 +1,54 @@
+name: Daily Hana Report Scraper
+
+on:
+  # 1. 스케줄 실행: 매일 한국 시간 오전 8시 30분 (UTC 23:30)
+  schedule:
+    - cron: '30 23 * * *'
+  
+  # 2. 수동 실행: GitHub Actions 탭에서 버튼 눌러서 즉시 실행 가능
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  scrape-and-upload:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # (1) 저장소 코드 가져오기
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # (2) 파이썬 3.9 설정
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      # (3) 크롬 브라우저 설치 (이미 깔려있지만 확실하게)
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@v1
+
+      # (4) 필요한 라이브러리 설치 (requirements.txt 이용)
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # (5) 크롤러 실행
+      - name: Run Scraper
+        run: |
+          python scraper.py
+
+      # (6) 결과가 있으면 깃허브에 저장 (Commit & Push)
+      - name: Commit and Push if changed
+        run: |
+          git config --global user.name 'GitHub Action Bot'
+          git config --global user.email 'action@github.com'
+          
+          # pdf_downloads 폴더를 git에 추가
+          git add pdf_downloads/
+          
+          # 변경사항이 있는지 확인 후 커밋
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Add daily report: $(date +'%Y-%m-%d')" && git push)
